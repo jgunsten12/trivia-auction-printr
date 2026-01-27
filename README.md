@@ -21,7 +21,7 @@ A simple web application for managing silent auction checkout and printing winne
    python app.py
    ```
 
-3. Open http://localhost:5000 in your browser
+3. Open http://localhost:5001 in your browser
 
 ## Using with ngrok
 
