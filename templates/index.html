@@ -567,6 +567,41 @@
             color: var(--text-muted);
         }
 
+        /* Search box */
+        .search-box {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem 0.6rem 2.25rem;
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
         /* Print styles */
         @media print {
             * {
@@ -712,6 +747,10 @@
                     </div>
                 </div>
                 <div class="panel-body">
+                    <div class="search-box">
+                        <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <input type="text" class="search-input" id="attendeeSearch" placeholder="Search attendees..." oninput="renderAttendees()">
+                    </div>
                     <div id="addAttendeeForm" class="add-form">
                         <div class="form-row">
                             <input type="text" class="form-input" id="newFirstName" placeholder="First name">
@@ -822,6 +861,8 @@
         // Attendees
         function renderAttendees() {
             const container = document.getElementById('attendeesList');
+            const searchInput = document.getElementById('attendeeSearch');
+            const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
             
             if (state.attendees.length === 0) {
                 container.innerHTML = `
@@ -834,13 +875,34 @@
                 return;
             }
 
+            // Filter by search query
+            let filteredAttendees = state.attendees;
+            if (searchQuery) {
+                filteredAttendees = state.attendees.filter(a => {
+                    const fullName = `${a.firstName} ${a.lastName}`.toLowerCase();
+                    const reverseName = `${a.lastName} ${a.firstName}`.toLowerCase();
+                    const table = (a.tableNumber || '').toLowerCase();
+                    return fullName.includes(searchQuery) || reverseName.includes(searchQuery) || table.includes(searchQuery);
+                });
+            }
+
             // Sort: non-printed first, then alphabetically by last name, then first name
-            const sortedAttendees = [...state.attendees].sort((a, b) => {
+            const sortedAttendees = [...filteredAttendees].sort((a, b) => {
                 if (a.printed !== b.printed) return a.printed ? 1 : -1;
                 const lastNameCompare = (a.lastName || '').localeCompare(b.lastName || '');
                 if (lastNameCompare !== 0) return lastNameCompare;
                 return (a.firstName || '').localeCompare(b.firstName || '');
             });
+
+            if (sortedAttendees.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p>No matches found</p>
+                    </div>
+                `;
+                return;
+            }
 
             container.innerHTML = sortedAttendees.map(a => `
                 <div class="list-item ${a.printed ? 'printed' : ''} ${state.selectedAttendee?.id === a.id ? 'selected' : ''}" 

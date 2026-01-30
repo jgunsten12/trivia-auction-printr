@@ -770,6 +770,31 @@
         6
       ],
       "timestamp": "2026-01-27 17:22:54.859550"
+    },
+    {
+      "attendeeId": 0,
+      "packageIds": [
+        1,
+        0
+      ],
+      "timestamp": "2026-01-27 17:45:07.088632"
+    },
+    {
+      "attendeeId": 0,
+      "packageIds": [
+        6,
+        8
+      ],
+      "timestamp": "2026-01-27 23:56:31.539635"
+    },
+    {
+      "attendeeId": 0,
+      "packageIds": [
+        4,
+        7,
+        6
+      ],
+      "timestamp": "2026-01-28 00:05:46.294294"
     }
   ]
 }
