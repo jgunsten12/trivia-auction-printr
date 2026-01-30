@@ -87,10 +87,15 @@
             position: relative;
         }
 
-        .theme-toggle {
+        .header-actions {
             position: absolute;
             top: 0;
             right: 0;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .theme-toggle {
             background: var(--bg-elevated);
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -122,6 +127,97 @@
         :root.light .theme-toggle .sun-icon { display: block; }
         :root.light .theme-toggle .moon-icon { display: none; }
         :root.light .theme-toggle .light-label { display: inline; }
+
+        .settings-btn {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+        }
+
+        .settings-btn:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 1.25rem;
+        }
+
+        .settings-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .settings-section h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .settings-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .settings-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .settings-actions .btn {
+            justify-content: center;
+        }
         :root.light .theme-toggle .dark-label { display: none; }
 
         h1 {
@@ -584,7 +680,7 @@
 
         .search-input {
             width: 100%;
-            padding: 0.6rem 0.8rem 0.6rem 2.25rem;
+            padding: 0.6rem 2rem 0.6rem 2.25rem;
             background: var(--bg-deep);
             border: 1px solid var(--border);
             border-radius: 6px;
@@ -600,6 +696,31 @@
 
         .search-input::placeholder {
             color: var(--text-muted);
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.25rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .search-clear:hover {
+            color: var(--text-primary);
+            background: var(--bg-elevated);
+        }
+
+        .search-clear.visible {
+            display: flex;
         }
 
         /* Print styles */
@@ -720,15 +841,47 @@
 <body>
     <div class="container">
         <header>
-            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
-                <svg class="sun-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                <svg class="moon-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                <span class="light-label">Light</span>
-                <span class="dark-label">Dark</span>
-            </button>
+            <div class="header-actions">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+                    <svg class="sun-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                    <svg class="moon-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    <span class="light-label">Light</span>
+                    <span class="dark-label">Dark</span>
+                </button>
+                <button class="settings-btn" onclick="toggleSettingsModal()" title="Settings">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+                </button>
+            </div>
             <h1>Auction <span>Label</span> Printer</h1>
-            <p class="subtitle">Silent auction checkout made simple</p>
         </header>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal" onclick="if(event.target === this) toggleSettingsModal()">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Settings</h3>
+                    <button class="btn btn-ghost" onclick="toggleSettingsModal()">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h4>Data Management</h4>
+                        <p class="settings-description">Clear all data from the system. This action cannot be undone.</p>
+                        <div class="settings-actions">
+                            <button class="btn btn-danger" onclick="clearAllAttendees()">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                Clear All Attendees
+                            </button>
+                            <button class="btn btn-danger" onclick="clearAllPackages()">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                Clear All Auction Items
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="main-grid">
             <!-- Attendees Panel -->
@@ -749,7 +902,10 @@
                 <div class="panel-body">
                     <div class="search-box">
                         <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                        <input type="text" class="search-input" id="attendeeSearch" placeholder="Search attendees..." oninput="renderAttendees()">
+                        <input type="text" class="search-input" id="attendeeSearch" placeholder="Search attendees..." oninput="renderAttendees(); updateClearButton('attendeeSearch')">
+                        <button class="search-clear" id="attendeeSearchClear" onclick="clearSearch('attendeeSearch'); renderAttendees()">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
                     </div>
                     <div id="addAttendeeForm" class="add-form">
                         <div class="form-row">
@@ -782,6 +938,13 @@
                     </div>
                 </div>
                 <div class="panel-body">
+                    <div class="search-box">
+                        <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <input type="text" class="search-input" id="packageSearch" placeholder="Search packages..." oninput="renderPackages(); updateClearButton('packageSearch')">
+                        <button class="search-clear" id="packageSearchClear" onclick="clearSearch('packageSearch'); renderPackages()">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                    </div>
                     <div id="addPackageForm" class="add-form">
                         <div class="form-row">
                             <input type="text" class="form-input" id="newPackageName" placeholder="Package name">
@@ -997,6 +1160,8 @@
         // Packages
         function renderPackages() {
             const container = document.getElementById('packagesList');
+            const searchInput = document.getElementById('packageSearch');
+            const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
             
             if (state.packages.length === 0) {
                 container.innerHTML = `
@@ -1009,11 +1174,29 @@
                 return;
             }
 
+            // Filter by search query
+            let filteredPackages = state.packages;
+            if (searchQuery) {
+                filteredPackages = state.packages.filter(p => {
+                    return (p.name || '').toLowerCase().includes(searchQuery);
+                });
+            }
+
             // Sort: non-printed first, then alphabetically by name
-            const sortedPackages = [...state.packages].sort((a, b) => {
+            const sortedPackages = [...filteredPackages].sort((a, b) => {
                 if (a.printed !== b.printed) return a.printed ? 1 : -1;
                 return (a.name || '').localeCompare(b.name || '');
             });
+
+            if (sortedPackages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p>No matches found</p>
+                    </div>
+                `;
+                return;
+            }
 
             container.innerHTML = sortedPackages.map(p => `
                 <div class="list-item ${p.printed ? 'printed' : ''} ${state.selectedPackages.some(sp => sp.id === p.id) ? 'selected' : ''}" 
@@ -1282,6 +1465,62 @@
                 printLabel();
             }
         });
+
+        // Search helpers
+        function clearSearch(inputId) {
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.value = '';
+                updateClearButton(inputId);
+            }
+        }
+
+        function updateClearButton(inputId) {
+            const input = document.getElementById(inputId);
+            const clearBtn = document.getElementById(inputId + 'Clear');
+            if (input && clearBtn) {
+                if (input.value.length > 0) {
+                    clearBtn.classList.add('visible');
+                } else {
+                    clearBtn.classList.remove('visible');
+                }
+            }
+        }
+
+        // Settings modal
+        function toggleSettingsModal() {
+            document.getElementById('settingsModal').classList.toggle('active');
+        }
+
+        async function clearAllAttendees() {
+            if (!confirm('Are you sure you want to delete ALL attendees? This cannot be undone.')) return;
+            
+            const response = await fetch('/api/attendees/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await response.json();
+            state.attendees = data.data.attendees;
+            state.selectedAttendee = null;
+            renderAll();
+            toggleSettingsModal();
+        }
+
+        async function clearAllPackages() {
+            if (!confirm('Are you sure you want to delete ALL auction items? This cannot be undone.')) return;
+            
+            const response = await fetch('/api/packages/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await response.json();
+            state.packages = data.data.packages;
+            state.selectedPackages = [];
+            renderAll();
+            toggleSettingsModal();
+        }
 
         // Theme toggle
         function toggleTheme() {

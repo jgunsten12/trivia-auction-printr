@@ -45,7 +45,7 @@ def upload_attendees():
                 'id': i,
                 'firstName': normalized.get('first name', normalized.get('firstname', '')),
                 'lastName': normalized.get('last name', normalized.get('lastname', '')),
-                'tableNumber': normalized.get('table number', normalized.get('tablenumber', normalized.get('table', ''))),
+                'tableNumber': normalized.get('table number', normalized.get('tablenumber', normalized.get('table #', normalized.get('table#', normalized.get('table', ''))))),
                 'printed': False
             })
         data['attendees'] = attendees
@@ -76,6 +76,13 @@ def add_attendee():
 def delete_attendee(attendee_id):
     data = load_data()
     data['attendees'] = [a for a in data['attendees'] if a['id'] != attendee_id]
+    save_data(data)
+    return jsonify({'success': True, 'data': data})
+
+@app.route('/api/attendees/clear', methods=['POST'])
+def clear_attendees():
+    data = load_data()
+    data['attendees'] = []
     save_data(data)
     return jsonify({'success': True, 'data': data})
 
@@ -116,6 +123,13 @@ def add_package():
 def delete_package(package_id):
     data = load_data()
     data['packages'] = [p for p in data['packages'] if p['id'] != package_id]
+    save_data(data)
+    return jsonify({'success': True, 'data': data})
+
+@app.route('/api/packages/clear', methods=['POST'])
+def clear_packages():
+    data = load_data()
+    data['packages'] = []
     save_data(data)
     return jsonify({'success': True, 'data': data})
 
