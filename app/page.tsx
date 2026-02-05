@@ -1,12 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Upload, Plus, Trash2, Check, Search, X, Printer, Settings, Moon, Sun, RotateCcw } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
+import { Check, X, Printer, Settings, Moon, Sun, Plus, Upload, Search, RotateCcw, Trash2 } from "lucide-react"
 
 interface Attendee {
   id: number
@@ -25,23 +20,20 @@ interface Package {
 interface AppData {
   attendees: Attendee[]
   packages: Package[]
-  printed: { attendeeId: number; packageIds: number[]; timestamp: string }[]
 }
 
 export default function AuctionLabelPrinter() {
-  const [data, setData] = useState<AppData>({ attendees: [], packages: [], printed: [] })
+  const [data, setData] = useState<AppData>({ attendees: [], packages: [] })
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null)
-  const [selectedPackages, setSelectedPackages] = useState<number[]>([])
+  const [selectedPackages, setSelectedPackages] = useState<Package[]>([])
   const [attendeeSearch, setAttendeeSearch] = useState("")
   const [packageSearch, setPackageSearch] = useState("")
   const [showAddAttendee, setShowAddAttendee] = useState(false)
   const [showAddPackage, setShowAddPackage] = useState(false)
   const [newAttendee, setNewAttendee] = useState({ firstName: "", lastName: "", tableNumber: "" })
-  const [newPackage, setNewPackage] = useState({ name: "" })
-  const [isDarkMode, setIsDarkMode] = useState(true)
+  const [newPackageName, setNewPackageName] = useState("")
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // Load data from localStorage on mount
   useEffect(() => {
     const savedData = localStorage.getItem("auctionLabelData")
     if (savedData) {
@@ -49,21 +41,19 @@ export default function AuctionLabelPrinter() {
     }
     const savedTheme = localStorage.getItem("theme")
     if (savedTheme === "light") {
-      setIsDarkMode(false)
       document.documentElement.classList.add("light")
     }
   }, [])
 
-  // Save data to localStorage when it changes
   const saveData = useCallback((newData: AppData) => {
     setData(newData)
     localStorage.setItem("auctionLabelData", JSON.stringify(newData))
   }, [])
 
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode)
     document.documentElement.classList.toggle("light")
-    localStorage.setItem("theme", isDarkMode ? "light" : "dark")
+    const isLight = document.documentElement.classList.contains("light")
+    localStorage.setItem("theme", isLight ? "light" : "dark")
   }
 
   const handleFileUpload = (type: "attendees" | "packages") => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,6 +67,7 @@ export default function AuctionLabelPrinter() {
       const headers = lines[0].toLowerCase().split(",").map(h => h.trim())
       
       if (type === "attendees") {
+        const maxId = data.attendees.length > 0 ? Math.max(...data.attendees.map(a => a.id)) : 0
         const attendees: Attendee[] = lines.slice(1).map((line, i) => {
           const values = line.split(",").map(v => v.trim())
           const row: Record<string, string> = {}
@@ -84,15 +75,17 @@ export default function AuctionLabelPrinter() {
             row[h] = values[idx] || ""
           })
           return {
-            id: i,
-            firstName: row["first name"] || row["firstname"] || "",
-            lastName: row["last name"] || row["lastname"] || "",
+            id: maxId + i + 1,
+            firstName: row["first name"] || row["firstname"] || row["first"] || "",
+            lastName: row["last name"] || row["lastname"] || row["last"] || "",
             tableNumber: row["table number"] || row["tablenumber"] || row["table #"] || row["table"] || "",
             printed: false
           }
         })
         saveData({ ...data, attendees })
+        setSelectedAttendee(null)
       } else {
+        const maxId = data.packages.length > 0 ? Math.max(...data.packages.map(p => p.id)) : 0
         const packages: Package[] = lines.slice(1).map((line, i) => {
           const values = line.split(",").map(v => v.trim())
           const row: Record<string, string> = {}
@@ -100,12 +93,13 @@ export default function AuctionLabelPrinter() {
             row[h] = values[idx] || ""
           })
           return {
-            id: i,
-            name: row["package name"] || row["packagename"] || row["name"] || values[0] || "",
+            id: maxId + i + 1,
+            name: row["package name"] || row["packagename"] || row["name"] || row["item"] || values[0] || "",
             printed: false
           }
         })
         saveData({ ...data, packages })
+        setSelectedPackages([])
       }
     }
     reader.readAsText(file)
@@ -113,103 +107,55 @@ export default function AuctionLabelPrinter() {
   }
 
   const addAttendee = () => {
-    if (!newAttendee.firstName && !newAttendee.lastName) return
-    const newId = Math.max(...data.attendees.map(a => a.id), -1) + 1
+    if (!newAttendee.firstName || !newAttendee.lastName) return
+    const newId = data.attendees.length > 0 ? Math.max(...data.attendees.map(a => a.id)) + 1 : 1
     const attendee: Attendee = { ...newAttendee, id: newId, printed: false }
     saveData({ ...data, attendees: [...data.attendees, attendee] })
     setNewAttendee({ firstName: "", lastName: "", tableNumber: "" })
     setShowAddAttendee(false)
+    setAttendeeSearch("")
   }
 
   const addPackage = () => {
-    if (!newPackage.name) return
-    const newId = Math.max(...data.packages.map(p => p.id), -1) + 1
-    const pkg: Package = { ...newPackage, id: newId, printed: false }
+    if (!newPackageName) return
+    const newId = data.packages.length > 0 ? Math.max(...data.packages.map(p => p.id)) + 1 : 1
+    const pkg: Package = { name: newPackageName, id: newId, printed: false }
     saveData({ ...data, packages: [...data.packages, pkg] })
-    setNewPackage({ name: "" })
+    setNewPackageName("")
     setShowAddPackage(false)
+    setPackageSearch("")
   }
 
   const deleteAttendee = (id: number) => {
+    if (!confirm("Delete this attendee?")) return
     saveData({ ...data, attendees: data.attendees.filter(a => a.id !== id) })
     if (selectedAttendee?.id === id) setSelectedAttendee(null)
   }
 
   const deletePackage = (id: number) => {
+    if (!confirm("Delete this package?")) return
     saveData({ ...data, packages: data.packages.filter(p => p.id !== id) })
-    setSelectedPackages(selectedPackages.filter(pid => pid !== id))
+    setSelectedPackages(selectedPackages.filter(p => p.id !== id))
   }
 
-  const togglePackageSelection = (id: number) => {
-    setSelectedPackages(prev => 
-      prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
-    )
+  const selectAttendee = (attendee: Attendee) => {
+    if (selectedAttendee?.id === attendee.id) {
+      setSelectedAttendee(null)
+    } else {
+      setSelectedAttendee(attendee)
+    }
   }
 
-  const handlePrint = () => {
-    if (!selectedAttendee) return
-
-    // Open print window
-    const printWindow = window.open("", "_blank", "width=300,height=200")
-    if (!printWindow) return
-
-    const selectedPkgs = data.packages.filter(p => selectedPackages.includes(p.id))
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          @page { size: 2.25in 1.25in; margin: 0; }
-          body {
-            width: 2.25in;
-            height: 1.25in;
-            padding: 0.1in 0.1in 0.1in 0.15in;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          }
-          .header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2pt 8pt; margin-bottom: 3pt; }
-          .name { font-size: 12pt; font-weight: bold; }
-          .table { font-size: 9pt; color: #333; }
-          .divider { height: 1px; background: #ddd; margin: 4pt 0; }
-          .packages { font-size: 8pt; line-height: 1.3; }
-          .total { font-size: 7pt; font-weight: 600; color: #666; margin-top: 4pt; text-transform: uppercase; letter-spacing: 0.05em; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <span class="name">${selectedAttendee.firstName} ${selectedAttendee.lastName}</span>
-          <span class="table">Table ${selectedAttendee.tableNumber}</span>
-        </div>
-        ${selectedPkgs.length > 0 ? `
-          <div class="divider"></div>
-          <div class="packages">${selectedPkgs.map(p => p.name).join(", ")}</div>
-          <div class="total">${selectedPkgs.length} item${selectedPkgs.length > 1 ? "s" : ""} won</div>
-        ` : ""}
-      </body>
-      </html>
-    `)
-    printWindow.document.close()
-    printWindow.print()
-
-    // Mark as printed
-    const updatedAttendees = data.attendees.map(a => 
-      a.id === selectedAttendee.id ? { ...a, printed: true } : a
-    )
-    const updatedPackages = data.packages.map(p => 
-      selectedPackages.includes(p.id) ? { ...p, printed: true } : p
-    )
-    saveData({
-      ...data,
-      attendees: updatedAttendees,
-      packages: updatedPackages,
-      printed: [...data.printed, { attendeeId: selectedAttendee.id, packageIds: selectedPackages, timestamp: new Date().toISOString() }]
-    })
-    setSelectedAttendee(null)
-    setSelectedPackages([])
+  const togglePackage = (pkg: Package) => {
+    const idx = selectedPackages.findIndex(p => p.id === pkg.id)
+    if (idx >= 0) {
+      setSelectedPackages(selectedPackages.filter(p => p.id !== pkg.id))
+    } else {
+      setSelectedPackages([...selectedPackages, pkg])
+    }
   }
 
-  const resetPrintStatus = (type: "attendee" | "package", id: number) => {
+  const resetStatus = (type: "attendee" | "package", id: number) => {
     if (type === "attendee") {
       saveData({
         ...data,
@@ -223,352 +169,713 @@ export default function AuctionLabelPrinter() {
     }
   }
 
-  const clearAll = (type: "attendees" | "packages" | "all") => {
-    if (type === "attendees") {
-      saveData({ ...data, attendees: [] })
-      setSelectedAttendee(null)
-    } else if (type === "packages") {
-      saveData({ ...data, packages: [] })
-      setSelectedPackages([])
-    } else {
-      saveData({ attendees: [], packages: [], printed: [] })
-      setSelectedAttendee(null)
-      setSelectedPackages([])
-    }
+  const clearAllAttendees = () => {
+    if (!confirm("Are you sure you want to delete ALL attendees? This cannot be undone.")) return
+    saveData({ ...data, attendees: [] })
+    setSelectedAttendee(null)
+    setAttendeeSearch("")
+    setSettingsOpen(false)
   }
 
-  const filteredAttendees = data.attendees.filter(a => 
-    `${a.firstName} ${a.lastName}`.toLowerCase().includes(attendeeSearch.toLowerCase()) ||
-    a.tableNumber.includes(attendeeSearch)
-  )
+  const clearAllPackages = () => {
+    if (!confirm("Are you sure you want to delete ALL auction items? This cannot be undone.")) return
+    saveData({ ...data, packages: [] })
+    setSelectedPackages([])
+    setPackageSearch("")
+    setSettingsOpen(false)
+  }
 
-  const filteredPackages = data.packages.filter(p => 
-    p.name.toLowerCase().includes(packageSearch.toLowerCase())
-  )
+  const clearSelection = () => {
+    setSelectedAttendee(null)
+    setSelectedPackages([])
+  }
 
-  const selectedPackageNames = data.packages.filter(p => selectedPackages.includes(p.id))
+  const splitPackagesForLabels = (packages: Package[], maxChars = 80) => {
+    const groups: Package[][] = []
+    let currentGroup: Package[] = []
+    let currentLength = 0
+    
+    for (const pkg of packages) {
+      const pkgLength = pkg.name.length + 3
+      
+      if (currentLength + pkgLength > maxChars && currentGroup.length > 0) {
+        groups.push(currentGroup)
+        currentGroup = [pkg]
+        currentLength = pkg.name.length
+      } else {
+        currentGroup.push(pkg)
+        currentLength += pkgLength
+      }
+    }
+    
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup)
+    }
+    
+    return groups
+  }
+
+  const printLabel = async () => {
+    if (!selectedAttendee || selectedPackages.length === 0) return
+
+    const packageGroups = splitPackagesForLabels(selectedPackages)
+    const totalLabels = packageGroups.length
+    const totalItems = selectedPackages.length
+
+    for (let i = 0; i < packageGroups.length; i++) {
+      const group = packageGroups[i]
+      const packageText = group.map(p => p.name).join(" | ")
+      const labelNumber = totalLabels > 1 ? ` (${i + 1}/${totalLabels})` : ""
+      const isLastLabel = i === packageGroups.length - 1
+
+      const printWindow = window.open("", "_blank", "width=400,height=300")
+      if (!printWindow) return
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
+            @page { size: 2.25in 1.25in; margin: 0; }
+            html, body {
+              width: 2.25in !important;
+              height: 1.25in !important;
+              background: white !important;
+            }
+            body {
+              padding: 0.1in 0.1in 0.1in 0.15in !important;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+            }
+            .header { display: flex !important; flex-wrap: wrap !important; justify-content: space-between !important; align-items: baseline !important; gap: 2pt 8pt !important; margin-bottom: 3pt !important; }
+            .name { font-size: 12pt !important; font-weight: bold !important; }
+            .table { font-size: 9pt !important; color: #333 !important; white-space: nowrap !important; }
+            .divider { border-top: 0.5pt solid #ccc !important; margin: 4pt 0 !important; }
+            .packages { font-size: 8pt !important; line-height: 1.3 !important; }
+            .total { font-size: 7pt !important; font-weight: 600 !important; color: #333 !important; margin-top: 4pt !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="name">${selectedAttendee.firstName} ${selectedAttendee.lastName}${labelNumber}</div>
+            <div class="table">Table ${selectedAttendee.tableNumber || "N/A"}</div>
+          </div>
+          <div class="divider"></div>
+          <div class="packages">${packageText}</div>
+          ${isLastLabel ? `<div class="total">TOTAL ITEMS: ${totalItems}</div>` : ""}
+        </body>
+        </html>
+      `)
+      printWindow.document.close()
+      printWindow.print()
+
+      if (i < packageGroups.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+    }
+
+    // Mark as printed
+    const updatedAttendees = data.attendees.map(a => 
+      a.id === selectedAttendee.id ? { ...a, printed: true } : a
+    )
+    const updatedPackages = data.packages.map(p => 
+      selectedPackages.some(sp => sp.id === p.id) ? { ...p, printed: true } : p
+    )
+    saveData({ attendees: updatedAttendees, packages: updatedPackages })
+    clearSelection()
+  }
+
+  // Filter and sort attendees
+  const filteredAttendees = data.attendees
+    .filter(a => {
+      if (!attendeeSearch) return true
+      const query = attendeeSearch.toLowerCase()
+      const fullName = `${a.firstName} ${a.lastName}`.toLowerCase()
+      const reverseName = `${a.lastName} ${a.firstName}`.toLowerCase()
+      const table = (a.tableNumber || "").toLowerCase()
+      return fullName.includes(query) || reverseName.includes(query) || table.includes(query)
+    })
+    .sort((a, b) => {
+      if (a.printed !== b.printed) return a.printed ? 1 : -1
+      const lastNameCompare = (a.lastName || "").localeCompare(b.lastName || "")
+      if (lastNameCompare !== 0) return lastNameCompare
+      return (a.firstName || "").localeCompare(b.firstName || "")
+    })
+
+  // Filter and sort packages
+  const filteredPackages = data.packages
+    .filter(p => {
+      if (!packageSearch) return true
+      return (p.name || "").toLowerCase().includes(packageSearch.toLowerCase())
+    })
+    .sort((a, b) => {
+      if (a.printed !== b.printed) return a.printed ? 1 : -1
+      return (a.name || "").localeCompare(b.name || "")
+    })
+
+  const packageGroups = selectedAttendee && selectedPackages.length > 0 
+    ? splitPackagesForLabels(selectedPackages) 
+    : []
+  const totalLabels = packageGroups.length
+  const canPrint = selectedAttendee && selectedPackages.length > 0
 
   return (
-    <div className={cn("min-h-screen bg-background text-foreground transition-colors", !isDarkMode && "light")}>
-      <div className="container mx-auto max-w-7xl p-4 md:p-8">
+    <div className="min-h-screen" style={{ background: "var(--bg-deep)", color: "var(--text-primary)" }}>
+      <div className="max-w-[1400px] mx-auto p-8">
         {/* Header */}
-        <header className="mb-8 border-b border-border pb-4 text-center relative">
+        <header className="text-center mb-8 pb-4 relative" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="absolute right-0 top-0 flex gap-2">
-            <Button variant="outline" size="sm" onClick={toggleTheme}>
-              {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-              <span className="ml-2 hidden sm:inline">{isDarkMode ? "Dark" : "Light"}</span>
-            </Button>
-            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Settings</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold mb-2">Clear Attendees</h4>
-                    <p className="text-sm text-muted-foreground mb-2">Remove all attendees from the list.</p>
-                    <Button variant="destructive" onClick={() => clearAll("attendees")}>Clear Attendees</Button>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Clear Packages</h4>
-                    <p className="text-sm text-muted-foreground mb-2">Remove all packages from the list.</p>
-                    <Button variant="destructive" onClick={() => clearAll("packages")}>Clear Packages</Button>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Clear All Data</h4>
-                    <p className="text-sm text-muted-foreground mb-2">Remove all data including print history.</p>
-                    <Button variant="destructive" onClick={() => clearAll("all")}>Clear All Data</Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <button 
+              onClick={toggleTheme}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all"
+              style={{ 
+                background: "var(--bg-elevated)", 
+                border: "1px solid var(--border)",
+                color: "var(--text-secondary)"
+              }}
+            >
+              <Moon className="w-4 h-4 dark-icon" />
+              <Sun className="w-4 h-4 light-icon hidden" />
+              <span className="hidden sm:inline">Dark</span>
+            </button>
+            <button 
+              onClick={() => setSettingsOpen(true)}
+              className="p-2 rounded-lg transition-all"
+              style={{ 
+                background: "var(--bg-elevated)", 
+                border: "1px solid var(--border)",
+                color: "var(--text-secondary)"
+              }}
+            >
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Auction <span className="text-primary">Label</span> Printer
+          <h1 className="text-5xl font-bold tracking-tight mb-2">
+            <span className="mr-2">🖨️</span>
+            Auction <span style={{ color: "var(--accent)" }}>Label</span> Printer
           </h1>
-          <p className="text-muted-foreground">Manage attendees and print auction labels</p>
         </header>
 
-        {/* Main Grid */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_1fr_380px]">
-          {/* Attendees Panel */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-xl font-normal">Attendees</CardTitle>
-              <div className="flex gap-2">
-                <label>
-                  <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload("attendees")} />
-                  <Button variant="secondary" size="sm" asChild>
-                    <span><Upload className="h-4 w-4 mr-1" /> Import</span>
-                  </Button>
-                </label>
-                <Button variant="secondary" size="sm" onClick={() => setShowAddAttendee(!showAddAttendee)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+        {/* Settings Modal */}
+        {settingsOpen && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0, 0, 0, 0.6)" }}
+            onClick={(e) => e.target === e.currentTarget && setSettingsOpen(false)}
+          >
+            <div 
+              className="w-full max-w-md rounded-xl overflow-hidden"
+              style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
+            >
+              <div className="flex justify-between items-center p-4" style={{ borderBottom: "1px solid var(--border)" }}>
+                <h3 className="text-lg font-semibold">Settings</h3>
+                <button 
+                  onClick={() => setSettingsOpen(false)}
+                  className="p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            </CardHeader>
-            <CardContent>
-              {showAddAttendee && (
-                <div className="mb-4 p-4 rounded-lg bg-muted">
-                  <div className="grid gap-2 mb-2">
-                    <Input 
-                      placeholder="First Name" 
-                      value={newAttendee.firstName} 
-                      onChange={e => setNewAttendee({ ...newAttendee, firstName: e.target.value })}
-                    />
-                    <Input 
-                      placeholder="Last Name" 
-                      value={newAttendee.lastName} 
-                      onChange={e => setNewAttendee({ ...newAttendee, lastName: e.target.value })}
-                    />
-                    <Input 
-                      placeholder="Table #" 
-                      value={newAttendee.tableNumber} 
-                      onChange={e => setNewAttendee({ ...newAttendee, tableNumber: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={addAttendee}>Add</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setShowAddAttendee(false)}>Cancel</Button>
+              <div className="p-5 space-y-6">
+                <div>
+                  <h4 className="font-semibold mb-1">Data Management</h4>
+                  <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+                    Clear all data from the system. This action cannot be undone.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <button 
+                      onClick={clearAllAttendees}
+                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-all"
+                      style={{ 
+                        background: "transparent", 
+                        border: "1px solid var(--danger)",
+                        color: "var(--danger)"
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Clear All Attendees
+                    </button>
+                    <button 
+                      onClick={clearAllPackages}
+                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-all"
+                      style={{ 
+                        background: "transparent", 
+                        border: "1px solid var(--danger)",
+                        color: "var(--danger)"
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Clear All Auction Items
+                    </button>
                   </div>
                 </div>
-              )}
-              
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Grid */}
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1fr_1fr_380px]">
+          {/* Attendees Panel */}
+          <div className="rounded-xl overflow-hidden" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--border)" }}>
+              <h2 className="text-xl font-normal">Attendees</h2>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setShowAddAttendee(!showAddAttendee)}
+                  className="p-2 rounded-md transition-all"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <label 
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-all"
+                  style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Upload CSV
+                  <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload("attendees")} />
+                </label>
+              </div>
+            </div>
+            <div className="p-4 max-h-[75vh] overflow-y-auto">
+              {/* Search */}
               <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search attendees..." 
-                  className="pl-9 pr-8"
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-muted)" }} />
+                <input
+                  type="text"
+                  placeholder="Search attendees..."
                   value={attendeeSearch}
-                  onChange={e => setAttendeeSearch(e.target.value)}
+                  onChange={(e) => setAttendeeSearch(e.target.value)}
+                  className="w-full py-2.5 pl-9 pr-8 rounded-md text-sm"
+                  style={{ 
+                    background: "var(--bg-deep)", 
+                    border: "1px solid var(--border)", 
+                    color: "var(--text-primary)",
+                    outline: "none"
+                  }}
                 />
                 {attendeeSearch && (
-                  <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded" onClick={() => setAttendeeSearch("")}>
-                    <X className="h-4 w-4" />
+                  <button 
+                    onClick={() => setAttendeeSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-                {filteredAttendees.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {data.attendees.length === 0 ? "Import a CSV or add attendees manually" : "No attendees found"}
+              {/* Add Form */}
+              {showAddAttendee && (
+                <div className="p-4 rounded-lg mb-4" style={{ background: "var(--bg-elevated)" }}>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="First name"
+                      value={newAttendee.firstName}
+                      onChange={(e) => setNewAttendee({ ...newAttendee, firstName: e.target.value })}
+                      className="flex-1 px-3 py-2 rounded-md text-sm"
+                      style={{ background: "var(--bg-deep)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Last name"
+                      value={newAttendee.lastName}
+                      onChange={(e) => setNewAttendee({ ...newAttendee, lastName: e.target.value })}
+                      className="flex-1 px-3 py-2 rounded-md text-sm"
+                      style={{ background: "var(--bg-deep)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+                    />
                   </div>
-                ) : (
-                  filteredAttendees.map(attendee => (
-                    <div 
-                      key={attendee.id}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border-2",
-                        attendee.printed ? "opacity-50 bg-muted" : "bg-muted/50 hover:bg-muted",
-                        selectedAttendee?.id === attendee.id ? "border-primary bg-primary/10" : "border-transparent"
-                      )}
-                      onClick={() => setSelectedAttendee(attendee)}
-                    >
-                      <div className={cn(
-                        "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0",
-                        selectedAttendee?.id === attendee.id ? "bg-primary border-primary" : "border-border"
-                      )}>
-                        {selectedAttendee?.id === attendee.id && <Check className="h-3 w-3 text-primary-foreground" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className={cn("font-medium truncate", attendee.printed && "line-through text-muted-foreground")}>
-                          {attendee.firstName} {attendee.lastName}
-                        </div>
-                        <div className={cn("text-sm text-muted-foreground", attendee.printed && "line-through")}>
-                          Table {attendee.tableNumber}
-                        </div>
-                      </div>
-                      {attendee.printed && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-green-500 text-green-950 font-semibold uppercase">
-                          Printed
-                        </span>
-                      )}
-                      <div className="flex gap-1 opacity-0 hover:opacity-100 transition-opacity">
-                        {attendee.printed && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); resetPrintStatus("attendee", attendee.id) }}>
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); deleteAttendee(attendee.id) }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Packages Panel */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-xl font-normal">Packages</CardTitle>
-              <div className="flex gap-2">
-                <label>
-                  <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload("packages")} />
-                  <Button variant="secondary" size="sm" asChild>
-                    <span><Upload className="h-4 w-4 mr-1" /> Import</span>
-                  </Button>
-                </label>
-                <Button variant="secondary" size="sm" onClick={() => setShowAddPackage(!showAddPackage)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {showAddPackage && (
-                <div className="mb-4 p-4 rounded-lg bg-muted">
-                  <Input 
-                    placeholder="Package Name" 
-                    className="mb-2"
-                    value={newPackage.name} 
-                    onChange={e => setNewPackage({ name: e.target.value })}
-                  />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={addPackage}>Add</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setShowAddPackage(false)}>Cancel</Button>
+                    <input
+                      type="text"
+                      placeholder="Table #"
+                      value={newAttendee.tableNumber}
+                      onChange={(e) => setNewAttendee({ ...newAttendee, tableNumber: e.target.value })}
+                      className="flex-1 px-3 py-2 rounded-md text-sm"
+                      style={{ background: "var(--bg-deep)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+                    />
+                    <button 
+                      onClick={addAttendee}
+                      className="px-4 py-2 rounded-md text-sm font-medium"
+                      style={{ background: "var(--accent)", color: "var(--bg-deep)" }}
+                    >
+                      Add
+                    </button>
+                    <button 
+                      onClick={() => setShowAddAttendee(false)}
+                      className="px-4 py-2 rounded-md text-sm font-medium"
+                      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               )}
-              
+
+              {/* List */}
+              {filteredAttendees.length === 0 ? (
+                <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>
+                  <div className="text-5xl mb-4 opacity-50">👥</div>
+                  <p>{data.attendees.length === 0 ? "No attendees yet" : "No matches found"}</p>
+                  {data.attendees.length === 0 && (
+                    <p className="text-sm mt-2">Upload a CSV or add manually</p>
+                  )}
+                </div>
+              ) : (
+                filteredAttendees.map(attendee => (
+                  <div
+                    key={attendee.id}
+                    onClick={() => selectAttendee(attendee)}
+                    className="flex items-center gap-3 p-3 rounded-lg mb-2 cursor-pointer transition-all"
+                    style={{
+                      background: selectedAttendee?.id === attendee.id 
+                        ? "rgba(39, 118, 234, 0.1)" 
+                        : attendee.printed 
+                          ? "var(--printed-bg)" 
+                          : "var(--bg-elevated)",
+                      border: `2px solid ${selectedAttendee?.id === attendee.id ? "var(--accent)" : "transparent"}`,
+                      opacity: attendee.printed ? 0.5 : 1,
+                      animation: "fadeIn 0.2s ease"
+                    }}
+                  >
+                    <div 
+                      className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0"
+                      style={{
+                        border: `2px solid ${selectedAttendee?.id === attendee.id ? "var(--accent)" : "var(--border)"}`,
+                        background: selectedAttendee?.id === attendee.id ? "var(--accent)" : "transparent"
+                      }}
+                    >
+                      {selectedAttendee?.id === attendee.id && (
+                        <Check className="w-3 h-3" style={{ color: "var(--bg-deep)" }} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div 
+                        className="font-medium truncate"
+                        style={{ 
+                          color: attendee.printed ? "var(--printed-text)" : "var(--text-primary)",
+                          textDecoration: attendee.printed ? "line-through" : "none"
+                        }}
+                      >
+                        {attendee.firstName} {attendee.lastName}
+                      </div>
+                      <div 
+                        className="text-xs"
+                        style={{ 
+                          color: attendee.printed ? "var(--printed-text)" : "var(--text-secondary)",
+                          textDecoration: attendee.printed ? "line-through" : "none"
+                        }}
+                      >
+                        Table {attendee.tableNumber}
+                      </div>
+                    </div>
+                    {attendee.printed && (
+                      <span 
+                        className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide"
+                        style={{ background: "var(--success)", color: "var(--bg-deep)" }}
+                      >
+                        Printed
+                      </span>
+                    )}
+                    <div className="flex gap-1 opacity-0 hover:opacity-100 transition-opacity">
+                      {attendee.printed && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); resetStatus("attendee", attendee.id) }}
+                          className="p-1 rounded"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); deleteAttendee(attendee.id) }}
+                        className="p-1 rounded"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Packages Panel */}
+          <div className="rounded-xl overflow-hidden" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--border)" }}>
+              <h2 className="text-xl font-normal">Auction Packages</h2>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setShowAddPackage(!showAddPackage)}
+                  className="p-2 rounded-md transition-all"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <label 
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-all"
+                  style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Upload CSV
+                  <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload("packages")} />
+                </label>
+              </div>
+            </div>
+            <div className="p-4 max-h-[75vh] overflow-y-auto">
+              {/* Search */}
               <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search packages..." 
-                  className="pl-9 pr-8"
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-muted)" }} />
+                <input
+                  type="text"
+                  placeholder="Search packages..."
                   value={packageSearch}
-                  onChange={e => setPackageSearch(e.target.value)}
+                  onChange={(e) => setPackageSearch(e.target.value)}
+                  className="w-full py-2.5 pl-9 pr-8 rounded-md text-sm"
+                  style={{ 
+                    background: "var(--bg-deep)", 
+                    border: "1px solid var(--border)", 
+                    color: "var(--text-primary)",
+                    outline: "none"
+                  }}
                 />
                 {packageSearch && (
-                  <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded" onClick={() => setPackageSearch("")}>
-                    <X className="h-4 w-4" />
+                  <button 
+                    onClick={() => setPackageSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-                {filteredPackages.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {data.packages.length === 0 ? "Import a CSV or add packages manually" : "No packages found"}
-                  </div>
-                ) : (
-                  filteredPackages.map(pkg => (
-                    <div 
-                      key={pkg.id}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border-2",
-                        pkg.printed ? "opacity-50 bg-muted" : "bg-muted/50 hover:bg-muted",
-                        selectedPackages.includes(pkg.id) ? "border-primary bg-primary/10" : "border-transparent"
-                      )}
-                      onClick={() => togglePackageSelection(pkg.id)}
+              {/* Add Form */}
+              {showAddPackage && (
+                <div className="p-4 rounded-lg mb-4" style={{ background: "var(--bg-elevated)" }}>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Package name"
+                      value={newPackageName}
+                      onChange={(e) => setNewPackageName(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-md text-sm"
+                      style={{ background: "var(--bg-deep)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+                    />
+                    <button 
+                      onClick={addPackage}
+                      className="px-4 py-2 rounded-md text-sm font-medium"
+                      style={{ background: "var(--accent)", color: "var(--bg-deep)" }}
                     >
-                      <div className={cn(
-                        "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0",
-                        selectedPackages.includes(pkg.id) ? "bg-primary border-primary" : "border-border"
-                      )}>
-                        {selectedPackages.includes(pkg.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className={cn("font-medium truncate", pkg.printed && "line-through text-muted-foreground")}>
-                          {pkg.name}
-                        </div>
-                      </div>
-                      {pkg.printed && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-green-500 text-green-950 font-semibold uppercase">
-                          Printed
-                        </span>
+                      Add
+                    </button>
+                    <button 
+                      onClick={() => setShowAddPackage(false)}
+                      className="px-4 py-2 rounded-md text-sm font-medium"
+                      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* List */}
+              {filteredPackages.length === 0 ? (
+                <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>
+                  <div className="text-5xl mb-4 opacity-50">🎁</div>
+                  <p>{data.packages.length === 0 ? "No packages yet" : "No matches found"}</p>
+                  {data.packages.length === 0 && (
+                    <p className="text-sm mt-2">Upload a CSV or add manually</p>
+                  )}
+                </div>
+              ) : (
+                filteredPackages.map(pkg => (
+                  <div
+                    key={pkg.id}
+                    onClick={() => togglePackage(pkg)}
+                    className="flex items-center gap-3 p-3 rounded-lg mb-2 cursor-pointer transition-all"
+                    style={{
+                      background: selectedPackages.some(p => p.id === pkg.id)
+                        ? "rgba(39, 118, 234, 0.1)" 
+                        : pkg.printed 
+                          ? "var(--printed-bg)" 
+                          : "var(--bg-elevated)",
+                      border: `2px solid ${selectedPackages.some(p => p.id === pkg.id) ? "var(--accent)" : "transparent"}`,
+                      opacity: pkg.printed ? 0.5 : 1,
+                      animation: "fadeIn 0.2s ease"
+                    }}
+                  >
+                    <div 
+                      className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0"
+                      style={{
+                        border: `2px solid ${selectedPackages.some(p => p.id === pkg.id) ? "var(--accent)" : "var(--border)"}`,
+                        background: selectedPackages.some(p => p.id === pkg.id) ? "var(--accent)" : "transparent"
+                      }}
+                    >
+                      {selectedPackages.some(p => p.id === pkg.id) && (
+                        <Check className="w-3 h-3" style={{ color: "var(--bg-deep)" }} />
                       )}
-                      <div className="flex gap-1 opacity-0 hover:opacity-100 transition-opacity">
-                        {pkg.printed && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); resetPrintStatus("package", pkg.id) }}>
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); deletePackage(pkg.id) }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div 
+                        className="font-medium truncate"
+                        style={{ 
+                          color: pkg.printed ? "var(--printed-text)" : "var(--text-primary)",
+                          textDecoration: pkg.printed ? "line-through" : "none"
+                        }}
+                      >
+                        {pkg.name}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                    {pkg.printed && (
+                      <span 
+                        className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide"
+                        style={{ background: "var(--success)", color: "var(--bg-deep)" }}
+                      >
+                        Printed
+                      </span>
+                    )}
+                    <div className="flex gap-1 opacity-0 hover:opacity-100 transition-opacity">
+                      {pkg.printed && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); resetStatus("package", pkg.id) }}
+                          className="p-1 rounded"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); deletePackage(pkg.id) }}
+                        className="p-1 rounded"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
 
           {/* Print Panel */}
-          <Card className="lg:sticky lg:top-8">
-            <CardHeader>
-              <CardTitle className="text-xl font-normal">Print Label</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-muted">
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Selected Attendee</div>
-                  <div className={cn("text-foreground", !selectedAttendee && "text-muted-foreground italic")}>
-                    {selectedAttendee 
-                      ? `${selectedAttendee.firstName} ${selectedAttendee.lastName} - Table ${selectedAttendee.tableNumber}`
-                      : "No attendee selected"}
-                  </div>
-                  
-                  {selectedPackageNames.length > 0 && (
-                    <div className="mt-4">
-                      <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Selected Packages</div>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedPackageNames.map(pkg => (
-                          <span key={pkg.id} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground font-medium">
-                            {pkg.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+          <div className="rounded-xl overflow-hidden lg:sticky lg:top-8" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div className="p-5" style={{ borderBottom: "1px solid var(--border)" }}>
+              <h2 className="text-xl font-normal">Print Label</h2>
+            </div>
+            <div className="p-4">
+              {/* Selection Summary */}
+              <div className="p-4 rounded-lg mb-4" style={{ background: "var(--bg-elevated)" }}>
+                <div className="text-xs uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>
+                  Winner
+                </div>
+                <div style={{ color: selectedAttendee ? "var(--text-primary)" : "var(--text-muted)" }}>
+                  {selectedAttendee ? (
+                    `${selectedAttendee.firstName} ${selectedAttendee.lastName}`
+                  ) : (
+                    <span className="italic">Select an attendee</span>
                   )}
                 </div>
 
-                {/* Label Preview */}
                 {selectedAttendee && (
-                  <div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Preview</div>
-                    <div className="bg-white rounded p-3 text-black" style={{ aspectRatio: "2.25/1.25" }}>
-                      <div className="flex flex-wrap justify-between items-baseline gap-1 mb-1">
-                        <span className="text-sm font-semibold">
-                          {selectedAttendee.firstName} {selectedAttendee.lastName}
-                        </span>
-                        <span className="text-xs text-gray-600">Table {selectedAttendee.tableNumber}</span>
-                      </div>
-                      {selectedPackageNames.length > 0 && (
-                        <>
-                          <div className="h-px bg-gray-300 my-1.5" />
-                          <div className="text-[10px] leading-tight">
-                            {selectedPackageNames.map(p => p.name).join(", ")}
-                          </div>
-                          <div className="text-[8px] font-semibold text-gray-500 mt-1 uppercase tracking-wide">
-                            {selectedPackageNames.length} item{selectedPackageNames.length > 1 ? "s" : ""} won
-                          </div>
-                        </>
-                      )}
+                  <div className="mt-3">
+                    <div className="text-xs uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>
+                      Table
                     </div>
+                    <div>{selectedAttendee.tableNumber || "N/A"}</div>
                   </div>
                 )}
 
-                <Button 
-                  className="w-full" 
-                  size="lg" 
-                  disabled={!selectedAttendee}
-                  onClick={handlePrint}
-                >
-                  <Printer className="h-5 w-5 mr-2" />
-                  Print Label
-                </Button>
+                {selectedPackages.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-xs uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>
+                      Packages Won
+                    </div>
+                    <div className="flex flex-wrap">
+                      {selectedPackages.map(pkg => (
+                        <span 
+                          key={pkg.id}
+                          className="inline-block px-2.5 py-1 rounded text-xs font-medium mr-1 mt-1"
+                          style={{ background: "var(--accent)", color: "var(--bg-deep)" }}
+                        >
+                          {pkg.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
+
+              {/* Label Preview */}
+              {canPrint && (
+                <div className="mb-4">
+                  <div className="text-xs uppercase tracking-widest mb-2" style={{ color: "var(--text-muted)" }}>
+                    Label Preview (2¼&quot; × 1¼&quot;)
+                  </div>
+                  <div 
+                    className="w-full rounded p-3 flex flex-col justify-center"
+                    style={{ 
+                      aspectRatio: "2.25 / 1.25", 
+                      background: "white",
+                      color: "black",
+                      fontFamily: "'Inter', system-ui, sans-serif"
+                    }}
+                  >
+                    <div className="flex flex-wrap justify-between items-baseline gap-1 mb-1">
+                      <div className="text-sm font-semibold">
+                        {selectedAttendee?.firstName} {selectedAttendee?.lastName}
+                        {totalLabels > 1 && ` (1/${totalLabels})`}
+                      </div>
+                      <div className="text-[11px] text-gray-500 whitespace-nowrap">
+                        Table {selectedAttendee?.tableNumber || "N/A"}
+                      </div>
+                    </div>
+                    <div className="h-px bg-gray-300 my-1.5"></div>
+                    <div className="text-[10px] leading-tight">
+                      {packageGroups[0]?.map(p => p.name).join(" | ")}
+                    </div>
+                    {totalLabels === 1 && (
+                      <div className="text-[9px] font-semibold text-gray-500 mt-1.5 uppercase tracking-wide">
+                        TOTAL ITEMS: {selectedPackages.length}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Print Button */}
+              <button
+                onClick={printLabel}
+                disabled={!canPrint}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-md text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ 
+                  background: canPrint ? "var(--accent)" : "var(--bg-elevated)", 
+                  color: canPrint ? "var(--bg-deep)" : "var(--text-muted)" 
+                }}
+              >
+                <Printer className="w-[18px] h-[18px]" />
+                {totalLabels > 1 ? `Print ${totalLabels} Labels` : "Print Label"}
+              </button>
+
+              <button
+                onClick={clearSelection}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-md text-base font-medium mt-2 transition-all"
+                style={{ 
+                  background: "var(--bg-elevated)", 
+                  border: "1px solid var(--border)",
+                  color: "var(--text-primary)" 
+                }}
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
