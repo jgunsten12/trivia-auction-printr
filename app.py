@@ -4,15 +4,18 @@ import json
 import os
 from io import StringIO
 
-from flask.sansio.app import App
-
 app = Flask(__name__)
 
-DATA_FILE = 'data.json'
+# Use /tmp for Vercel (serverless), fallback to local for development
+DATA_FILE = '/tmp/data.json' if os.environ.get('VERCEL') else 'data.json'
 
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
+            return json.load(f)
+    # On Vercel, try to load from bundled data.json as initial data
+    if os.environ.get('VERCEL') and os.path.exists('data.json'):
+        with open('data.json', 'r') as f:
             return json.load(f)
     return {'attendees': [], 'packages': [], 'printed': []}
 

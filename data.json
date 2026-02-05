@@ -4566,6 +4566,43 @@
         29
       ],
       "timestamp": "2026-01-30 13:29:59.948387"
+    },
+    {
+      "attendeeId": 27,
+      "packageIds": [
+        18
+      ],
+      "timestamp": "2026-01-30 17:14:59.040444"
+    },
+    {
+      "attendeeId": 61,
+      "packageIds": [
+        2
+      ],
+      "timestamp": "2026-01-30 20:43:05.533827"
+    },
+    {
+      "attendeeId": 36,
+      "packageIds": [
+        20,
+        19
+      ],
+      "timestamp": "2026-01-30 20:47:22.855785"
+    },
+    {
+      "attendeeId": 36,
+      "packageIds": [
+        41
+      ],
+      "timestamp": "2026-01-30 20:48:20.686508"
+    },
+    {
+      "attendeeId": 507,
+      "packageIds": [
+        3,
+        7
+      ],
+      "timestamp": "2026-02-04 19:45:14.870004"
     }
   ]
 }
